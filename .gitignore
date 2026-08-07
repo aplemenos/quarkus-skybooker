@@ -1,0 +1,9 @@
+# IntelliJ
+.idea/
+*.iml
+# Build output (each service also ignores its own)
+target/
+# OS
+.DS_Store
+# Local env
+.env
