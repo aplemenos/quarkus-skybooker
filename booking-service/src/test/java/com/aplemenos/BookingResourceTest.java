@@ -11,6 +11,8 @@ import com.aplemenos.client.FlightClient;
 import com.aplemenos.client.FlightResponse;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.ProcessingException;
 import java.math.BigDecimal;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,34 @@ class BookingResourceTest {
     void getUnknownBooking_returns404() {
         given()
                 .when().get("/bookings/9999")
+                .then().statusCode(404);
+    }
+
+    @Test
+    void createBooking_flightServiceUnreachable_degradesToPending() {
+        // Simulate flight-service being down: every call fails with a network error.
+        // @Retry exhausts, then @Fallback runs -> booking is accepted as PENDING.
+        when(flightClient.getFlight(1L))
+                .thenThrow(new ProcessingException("Connection refused"));
+
+        given().contentType("application/json")
+                .body("{\"flightId\":1,\"passengerName\":\"Resilient Rita\",\"seats\":2}")
+                .when().post("/bookings")
+                .then().statusCode(201)
+                .body("status", is("PENDING"))          // degraded, not failed
+                .body("flightNumber", is((String) null));
+    }
+
+    @Test
+    void createBooking_flightNotFound_propagates404NotFallback() {
+        // A 404 is a business error: @Retry aborts and @Fallback is skipped, so it
+        // must surface as 404 — NOT be swallowed into a PENDING booking.
+        when(flightClient.getFlight(1L))
+                .thenThrow(new NotFoundException("Flight 1 not found"));
+
+        given().contentType("application/json")
+                .body("{\"flightId\":1,\"passengerName\":\"Ghost\",\"seats\":1}")
+                .when().post("/bookings")
                 .then().statusCode(404);
     }
 

@@ -6,6 +6,7 @@ import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import org.jboss.logging.Logger;
 
 /**
  * Business logic for flights. A CDI {@code @ApplicationScoped} bean — a single
@@ -13,6 +14,8 @@ import java.util.List;
  */
 @ApplicationScoped
 public class FlightService {
+
+    private static final Logger LOG = Logger.getLogger(FlightService.class);
 
     public List<Flight> listAll() {
         return Flight.listAll();
@@ -44,16 +47,22 @@ public class FlightService {
 
         Flight flight = findById(id); // 404 if the flight does not exist
 
+        LOG.infof("Reserving %d seat(s) on flight %d (%s)", seats, id, flight.flightNumber);
+
         long updated = Flight.update(
                 "availableSeats = availableSeats - ?1 where id = ?2 and availableSeats >= ?1",
                 seats, id);
         if (updated == 0) {
+            LOG.warnf("Reservation rejected: flight %d has fewer than %d seats available", id, seats);
+
             throw new WebApplicationException(
                     "Not enough seats on flight " + id, Response.Status.CONFLICT);
         }
 
         // The bulk update bypassed the persistence context; reload the fresh state.
         Flight.getEntityManager().refresh(flight);
+
+        LOG.infof("Reserved %d seat(s) on flight %d; %d remaining", seats, id, flight.availableSeats);
 
         return flight;
     }
