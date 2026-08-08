@@ -58,4 +58,27 @@ class FlightResourceTest {
                 .when().post("/flights/4/reserve")
                 .then().statusCode(409);
     }
+
+    @Test
+    void reserve_exceedsConfiguredMaxPerReservation_returns400() {
+        // flight.max-seats-per-reservation=10; requesting 11 is rejected up front.
+        given().contentType("application/json").body("{\"seats\":11}")
+                .when().post("/flights/1/reserve")
+                .then().statusCode(400);
+    }
+
+    @Test
+    void health_liveness_isUp() {
+        given()
+                .when().get("/q/health/live")
+                .then().statusCode(200)
+                .body("status", is("UP"));
+    }
+
+    @Test
+    void metrics_endpoint_isExposed() {
+        given()
+                .when().get("/q/metrics")
+                .then().statusCode(200);
+    }
 }

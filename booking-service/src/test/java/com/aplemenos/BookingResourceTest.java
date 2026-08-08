@@ -108,6 +108,22 @@ class BookingResourceTest {
     }
 
     @Test
+    void health_liveness_isUp() {
+        // Liveness only (readiness would ping flight-service, which isn't running in tests).
+        given()
+                .when().get("/q/health/live")
+                .then().statusCode(200)
+                .body("status", is("UP"));
+    }
+
+    @Test
+    void metrics_endpoint_isExposed() {
+        given()
+                .when().get("/q/metrics")
+                .then().statusCode(200);
+    }
+
+    @Test
     void createThenGetBooking_roundTrips() {
         stubFlight1();
 

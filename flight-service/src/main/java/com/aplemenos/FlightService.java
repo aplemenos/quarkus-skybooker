@@ -1,5 +1,6 @@
 package com.aplemenos;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -23,6 +24,10 @@ public class FlightService {
     @Inject
     @ConfigProperty(name = "flight.max-seats-per-reservation")
     int maxSeatsPerReservation;
+
+    /** Micrometer registry — exposes custom metrics at /q/metrics (Prometheus). */
+    @Inject
+    MeterRegistry meterRegistry;
 
     public List<Flight> listAll() {
         return Flight.listAll();
@@ -73,6 +78,9 @@ public class FlightService {
 
         // The bulk update bypassed the persistence context; reload the fresh state.
         Flight.getEntityManager().refresh(flight);
+
+        // Custom metric: total seats reserved (flights_seats_reserved_total).
+        meterRegistry.counter("flights.seats.reserved").increment(seats);
 
         LOG.infof("Reserved %d seat(s) on flight %d; %d remaining", seats, id, flight.availableSeats);
 

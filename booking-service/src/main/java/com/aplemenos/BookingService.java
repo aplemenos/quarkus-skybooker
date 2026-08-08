@@ -1,6 +1,7 @@
 package com.aplemenos;
 
 import com.aplemenos.dto.CreateBookingRequest;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
@@ -41,6 +42,10 @@ public class BookingService {
     /** Fires a CDI event after a booking is created (observed by BookingEventListener). */
     @Inject
     Event<BookingCreatedEvent> bookingCreatedEvent;
+
+    /** Micrometer registry — exposes custom metrics at /q/metrics (Prometheus). */
+    @Inject
+    MeterRegistry meterRegistry;
 
     public List<Booking> listAll() {
         return Booking.listAll();
@@ -121,6 +126,9 @@ public class BookingService {
         LOG.infof("[%s] Booking %d %s (flight=%s, total=%s)",
                 requestContext.getRequestId(), booking.id, booking.status,
                 booking.flightNumber, booking.totalPrice);
+
+        // Custom metric: count bookings by status (bookings_created_total{status="..."}).
+        meterRegistry.counter("bookings.created", "status", booking.status.name()).increment();
 
         // Fire a CDI event — observers react without BookingService knowing about them.
         bookingCreatedEvent.fire(new BookingCreatedEvent(
