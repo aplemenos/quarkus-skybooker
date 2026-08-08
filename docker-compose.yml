@@ -1,0 +1,67 @@
+# Full stack: a PostgreSQL per service (database-per-service) + both services.
+# Services run the PROD profile (the default for a packaged app) and read their
+# config from the environment below.
+#
+# Build the app jars first, then start:
+#   (cd flight-service && ./mvnw package -DskipTests)
+#   (cd booking-service && ./mvnw package -DskipTests)
+#   docker compose up --build
+#
+# flight-service  -> http://localhost:8701
+# booking-service -> http://localhost:8702
+
+services:
+  flights-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: flights_db
+      POSTGRES_USER: flights
+      POSTGRES_PASSWORD: flights
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flights -d flights_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  bookings-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: bookings_db
+      POSTGRES_USER: bookings
+      POSTGRES_PASSWORD: bookings
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookings -d bookings_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  flight-service:
+    build:
+      context: ./flight-service
+      dockerfile: src/main/docker/Dockerfile.jvm
+    depends_on:
+      flights-db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://flights-db:5432/flights_db
+      DB_USERNAME: flights
+      DB_PASSWORD: flights
+    ports:
+      - "8701:8801"
+
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: src/main/docker/Dockerfile.jvm
+    depends_on:
+      bookings-db:
+        condition: service_healthy
+      flight-service:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://bookings-db:5432/bookings_db
+      DB_USERNAME: bookings
+      DB_PASSWORD: bookings
+      FLIGHT_SERVICE_URL: http://flight-service:8801
+    ports:
+      - "8702:8802"

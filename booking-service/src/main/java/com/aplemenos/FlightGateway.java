@@ -41,7 +41,7 @@ public class FlightGateway {
      * </ul>
      */
     @Timeout(2000)
-    @Retry(maxRetries = 4, delay = 200, abortOn = WebApplicationException.class)
+    @Retry(maxRetries = 5, delay = 500, abortOn = WebApplicationException.class)
     @Fallback(fallbackMethod = "flightUnavailable", skipOn = WebApplicationException.class)
     public FlightReservation reserveSeats(Long flightId, int seats) {
         LOG.debugf("Calling flight-service to reserve %d seat(s) on flight %d", seats, flightId);

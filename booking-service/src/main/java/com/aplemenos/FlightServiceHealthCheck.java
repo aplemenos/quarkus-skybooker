@@ -30,6 +30,7 @@ public class FlightServiceHealthCheck implements HealthCheck {
     public HealthCheckResponse call() {
         try (Response response = flightHealthClient.live()) {
             boolean up = response.getStatus() == 200;
+
             return HealthCheckResponse.named("flight-service-reachable").status(up).build();
         } catch (Exception e) {
             return HealthCheckResponse.named("flight-service-reachable")

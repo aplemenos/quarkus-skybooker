@@ -123,6 +123,7 @@ public class BookingService {
         }
 
         booking.persist();
+
         LOG.infof("[%s] Booking %d %s (flight=%s, total=%s)",
                 requestContext.getRequestId(), booking.id, booking.status,
                 booking.flightNumber, booking.totalPrice);
