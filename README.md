@@ -19,6 +19,8 @@ service is unavailable.
 - **CDI** — `@Inject`, `@ApplicationScoped`, `@Qualifier`, `@RequestScoped`, `@Observes`
 - **MicroProfile Config** — `@ConfigProperty` with **DEV / TEST / PROD** profiles
 - **Persistence** — Hibernate ORM with Panache, **PostgreSQL per service**
+- **Database migrations** — **Flyway** owns the schema in every environment;
+  Hibernate only validates (dev/prod parity)
 - **Monitoring** — SmallRye **Health** (incl. a dependency probe) + Micrometer **Prometheus** metrics
 - **Testing** — **JUnit 5 + RestAssured** (+ Mockito for the REST client)
 - **GraalVM native + Docker** — native-ready, multi-service `docker compose`
@@ -71,6 +73,7 @@ sequenceDiagram
 | Inter-service | MicroProfile REST Client |
 | Resilience | SmallRye Fault Tolerance |
 | Persistence | Hibernate ORM + Panache, PostgreSQL 18 |
+| Migrations | Flyway (schema owned by migrations, Hibernate validates) |
 | Config | MicroProfile Config (profiles) |
 | Observability | SmallRye Health, Micrometer + Prometheus |
 | Testing | JUnit 5, RestAssured, Mockito |
@@ -198,8 +201,9 @@ the JVM — the main reason to pair Quarkus with GraalVM.
 
 ## Notes
 
-- **Schema management** — for the runnable demo, Hibernate creates and seeds the
-  schema. A real production deployment would own the schema with **Flyway
-  migrations** and set the strategy to `validate`.
+- **Schema management** — **Flyway** owns the schema and runs migrations at startup
+  in **every** environment (dev/prod parity); Hibernate is set to `validate` and
+  only checks the entities against the migrated schema. This mirrors real
+  production and catches entity/schema drift at startup.
 - **Ports** — dev: flight `8701`, booking `8702`. In containers flight listens on
   `8801` and booking on `8802`, mapped back to host `8701` / `8702`.

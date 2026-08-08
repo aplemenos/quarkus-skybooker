@@ -73,10 +73,14 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-flyway</artifactId>
+        </dependency>
+        <!-- Mockito support for mocking the flight-service REST client in tests. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Mockito support for mocking the flight-service REST client in tests. -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit5-mockito</artifactId>
