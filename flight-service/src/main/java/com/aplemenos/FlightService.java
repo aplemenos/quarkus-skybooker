@@ -1,11 +1,13 @@
 package com.aplemenos;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -16,6 +18,11 @@ import org.jboss.logging.Logger;
 public class FlightService {
 
     private static final Logger LOG = Logger.getLogger(FlightService.class);
+
+    /** Max seats allowed in a single reservation — from MicroProfile Config. */
+    @Inject
+    @ConfigProperty(name = "flight.max-seats-per-reservation")
+    int maxSeatsPerReservation;
 
     public List<Flight> listAll() {
         return Flight.listAll();
@@ -43,6 +50,11 @@ public class FlightService {
     public Flight reserve(Long id, int seats) {
         if (seats < 1) {
             throw new WebApplicationException("Seats must be at least 1", Response.Status.BAD_REQUEST);
+        }
+        if (seats > maxSeatsPerReservation) {
+            throw new WebApplicationException(
+                    "Cannot reserve more than " + maxSeatsPerReservation + " seats at once",
+                    Response.Status.BAD_REQUEST);
         }
 
         Flight flight = findById(id); // 404 if the flight does not exist

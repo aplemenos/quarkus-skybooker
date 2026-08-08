@@ -56,6 +56,15 @@ class BookingResourceTest {
     }
 
     @Test
+    void createBooking_exceedsConfiguredMaxSeats_returns400() {
+        // booking.max-seats=9; requesting 20 is rejected before flight-service is called.
+        given().contentType("application/json")
+                .body("{\"flightId\":1,\"passengerName\":\"Too Many Seats\",\"seats\":20}")
+                .when().post("/bookings")
+                .then().statusCode(400);
+    }
+
+    @Test
     void createBooking_zeroSeats_returns400() {
         given().contentType("application/json")
                 .body("{\"flightId\":1,\"passengerName\":\"Zero Seats\",\"seats\":0}")

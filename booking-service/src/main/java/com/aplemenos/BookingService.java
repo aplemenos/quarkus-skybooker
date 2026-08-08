@@ -2,13 +2,14 @@ package com.aplemenos;
 
 import com.aplemenos.dto.CreateBookingRequest;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
-import java.math.BigDecimal;
 import java.util.List;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -22,6 +23,24 @@ public class BookingService {
 
     @Inject
     FlightGateway flightGateway;
+
+    /** Max seats per booking — from MicroProfile Config (booking.max-seats). */
+    @Inject
+    @ConfigProperty(name = "booking.max-seats")
+    int maxSeats;
+
+    /** Pricing strategy selected via the @Standard CDI qualifier. */
+    @Inject
+    @Standard
+    PricingStrategy pricingStrategy;
+
+    /** A fresh instance per HTTP request, used to correlate logs. */
+    @Inject
+    RequestContext requestContext;
+
+    /** Fires a CDI event after a booking is created (observed by BookingEventListener). */
+    @Inject
+    Event<BookingCreatedEvent> bookingCreatedEvent;
 
     public List<Booking> listAll() {
         return Booking.listAll();
@@ -39,19 +58,26 @@ public class BookingService {
     @Transactional
     public Booking create(CreateBookingRequest request) {
         if (request.flightId() == null) {
-            LOG.error("flightId is null");
+            LOG.warn("flightId is null");
 
             throw new WebApplicationException("flightId is required", Response.Status.BAD_REQUEST);
         }
 
         if (request.seats() < 1) {
-            LOG.error("seats is less than 1");
+            LOG.warn("seats is less than 1");
 
             throw new WebApplicationException("seats must be at least 1", Response.Status.BAD_REQUEST);
         }
 
-        LOG.infof("Creating booking: flight=%d seats=%d passenger=%s",
-                request.flightId(), request.seats(), request.passengerName());
+        if (request.seats() > maxSeats) {
+            throw new WebApplicationException(
+                    "Cannot book more than " + maxSeats + " seats per booking",
+                    Response.Status.BAD_REQUEST);
+        }
+
+        LOG.infof("[%s] Creating booking: flight=%d seats=%d passenger=%s",
+                requestContext.getRequestId(), request.flightId(), request.seats(),
+                request.passengerName());
 
         // Reserve via flight-service. Business errors (404/409) skip the fallback
         // and surface here for translation; an unreachable flight-service instead
@@ -62,19 +88,17 @@ public class BookingService {
         } catch (WebApplicationException e) {
             int status = e.getResponse() != null ? e.getResponse().getStatus() : 500;
             if (status == 404) {
-                LOG.error("flight not found");
-
                 throw new NotFoundException("Flight " + request.flightId() + " not found");
             }
 
             if (status == 409) {
-                LOG.error("flight has no available seats");
+                LOG.warn("flight has no available seats");
 
                 throw new WebApplicationException(
                         "Flight " + request.flightId() + " has no available seats for "
                                 + request.seats() + " passenger(s)", Response.Status.CONFLICT);
             }
-            
+
             throw e;
         }
 
@@ -85,7 +109,7 @@ public class BookingService {
 
         if (reservation.confirmed()) {
             booking.flightNumber = reservation.flightNumber();
-            booking.totalPrice = reservation.price().multiply(BigDecimal.valueOf(request.seats()));
+            booking.totalPrice = pricingStrategy.totalPrice(reservation.price(), request.seats());
             booking.status = BookingStatus.CONFIRMED;
         } else {
             // Degraded path: flight-service was unreachable. Accept the booking as
@@ -94,9 +118,13 @@ public class BookingService {
         }
 
         booking.persist();
+        LOG.infof("[%s] Booking %d %s (flight=%s, total=%s)",
+                requestContext.getRequestId(), booking.id, booking.status,
+                booking.flightNumber, booking.totalPrice);
 
-        LOG.infof("Booking %d %s (flight=%s, total=%s)",
-                booking.id, booking.status, booking.flightNumber, booking.totalPrice);
+        // Fire a CDI event — observers react without BookingService knowing about them.
+        bookingCreatedEvent.fire(new BookingCreatedEvent(
+                booking.id, booking.flightId, booking.seats, booking.status));
 
         return booking;
     }
