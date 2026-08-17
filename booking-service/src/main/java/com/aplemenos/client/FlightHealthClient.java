@@ -6,10 +6,11 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 /**
- * Tiny REST client to probe flight-service's liveness endpoint. Reuses the
- * {@code flight-api} base URL, so it points at the same flight-service.
+ * Tiny REST client to probe flight-service's liveness endpoint. Uses the
+ * {@code flight-health-api} base URL, which points at flight-service's
+ * MANAGEMENT port (where health lives), not its app port.
  */
-@RegisterRestClient(configKey = "flight-api")
+@RegisterRestClient(configKey = "flight-health-api")
 public interface FlightHealthClient {
 
     @GET

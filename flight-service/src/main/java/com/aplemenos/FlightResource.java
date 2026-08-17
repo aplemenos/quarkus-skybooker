@@ -3,6 +3,7 @@ package com.aplemenos;
 import com.aplemenos.dto.AvailabilityResponse;
 import com.aplemenos.dto.FlightDto;
 import com.aplemenos.dto.ReserveRequest;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -21,6 +22,7 @@ import java.util.List;
 @Path("/flights")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Authenticated
 public class FlightResource {
 
     @Inject

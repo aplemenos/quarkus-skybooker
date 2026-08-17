@@ -7,8 +7,12 @@
 #   (cd booking-service && ./mvnw package -DskipTests)
 #   docker compose up --build
 #
-# flight-service  -> http://localhost:8701
-# booking-service -> http://localhost:8702
+# flight-service  -> http://localhost:8701   (health/metrics: http://localhost:9001/q)
+# booking-service -> http://localhost:8702   (health/metrics: http://localhost:9002/q)
+#
+# Health and metrics live on a separate MANAGEMENT port (9001/9002), off the
+# public app port. Only the app port need be public in production; the
+# management port is mapped here for local convenience.
 
 services:
   flights-db:
@@ -47,7 +51,8 @@ services:
       DB_USERNAME: flights
       DB_PASSWORD: flights
     ports:
-      - "8701:8801"
+      - "8701:8801"   # app
+      - "9001:9001"   # management (health + metrics)
 
   booking-service:
     build:
@@ -63,5 +68,8 @@ services:
       DB_USERNAME: bookings
       DB_PASSWORD: bookings
       FLIGHT_SERVICE_URL: http://flight-service:8801
+      # Readiness probes flight-service's health on its management port.
+      FLIGHT_MANAGEMENT_URL: http://flight-service:9001
     ports:
-      - "8702:8802"
+      - "8702:8802"   # app
+      - "9002:9002"   # management (health + metrics)

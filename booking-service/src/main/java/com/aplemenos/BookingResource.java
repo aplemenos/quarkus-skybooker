@@ -2,6 +2,7 @@ package com.aplemenos;
 
 import com.aplemenos.dto.BookingDto;
 import com.aplemenos.dto.CreateBookingRequest;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -17,6 +18,7 @@ import java.util.List;
 @Path("/bookings")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Authenticated
 public class BookingResource {
 
     @Inject

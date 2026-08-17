@@ -3,11 +3,24 @@ package com.aplemenos;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 
+import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
+import java.net.URL;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
+@TestSecurity(user = "tester")   // endpoints are @Authenticated; run tests as a logged-in user
 class FlightResourceTest {
+
+    // Health and metrics live on the management port, not the app port.
+    // management=true resolves to the management interface base (which already
+    // includes its /q root path), so these values are relative to that.
+    @TestHTTPResource(value = "/health/live", management = true)
+    URL livenessUrl;
+
+    @TestHTTPResource(value = "/metrics", management = true)
+    URL metricsUrl;
 
     @Test
     void listFlights_returnsSeededData() {
@@ -70,7 +83,7 @@ class FlightResourceTest {
     @Test
     void health_liveness_isUp() {
         given()
-                .when().get("/q/health/live")
+                .when().get(livenessUrl.toExternalForm())
                 .then().statusCode(200)
                 .body("status", is("UP"));
     }
@@ -78,7 +91,7 @@ class FlightResourceTest {
     @Test
     void metrics_endpoint_isExposed() {
         given()
-                .when().get("/q/metrics")
+                .when().get(metricsUrl.toExternalForm())
                 .then().statusCode(200);
     }
 }

@@ -10,7 +10,10 @@ import static org.mockito.Mockito.when;
 import com.aplemenos.client.FlightClient;
 import com.aplemenos.client.FlightResponse;
 import io.quarkus.test.InjectMock;
+import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
+import java.net.URL;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.ProcessingException;
 import java.math.BigDecimal;
@@ -18,11 +21,21 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
+@TestSecurity(user = "tester")   // /bookings are @Authenticated; run tests as a logged-in user
 class BookingResourceTest {
 
     @InjectMock
     @RestClient
     FlightClient flightClient;
+
+    // Health and metrics live on the management port, not the app port.
+    // management=true resolves to the management interface base (which already
+    // includes its /q root path), so these values are relative to that.
+    @TestHTTPResource(value = "/health/live", management = true)
+    URL livenessUrl;
+
+    @TestHTTPResource(value = "/metrics", management = true)
+    URL metricsUrl;
 
     /** Stub flight-service to return flight 1 (SK101 @ 120.00) and accept the reservation. */
     private void stubFlight1() {
@@ -111,7 +124,7 @@ class BookingResourceTest {
     void health_liveness_isUp() {
         // Liveness only (readiness would ping flight-service, which isn't running in tests).
         given()
-                .when().get("/q/health/live")
+                .when().get(livenessUrl.toExternalForm())
                 .then().statusCode(200)
                 .body("status", is("UP"));
     }
@@ -119,7 +132,7 @@ class BookingResourceTest {
     @Test
     void metrics_endpoint_isExposed() {
         given()
-                .when().get("/q/metrics")
+                .when().get(metricsUrl.toExternalForm())
                 .then().statusCode(200);
     }
 

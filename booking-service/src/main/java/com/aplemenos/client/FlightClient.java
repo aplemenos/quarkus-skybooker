@@ -7,17 +7,19 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 /**
  * Typed MicroProfile REST Client for flight-service. The base URL is configured
- * via {@code quarkus.rest-client.flight-api.url}. Quarkus generates the HTTP
- * implementation from these JAX-RS annotations at build time.
+ * via {@code quarkus.rest-client.flight-api.url}. {@code @RegisterClientHeaders}
+ * propagates the caller's Bearer token so the internal call is authenticated.
  */
 @Path("/flights")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @RegisterRestClient(configKey = "flight-api")
+@RegisterClientHeaders(AuthHeadersFactory.class)
 public interface FlightClient {
 
     /** Fetch flight details (used to snapshot the flight number and price). */
